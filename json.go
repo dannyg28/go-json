@@ -1,4 +1,4 @@
-package server
+package goJson
 
 import (
 	"encoding/json"
