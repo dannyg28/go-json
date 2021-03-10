@@ -17,22 +17,39 @@ var (
 	ErrNotMap    = fmt.Errorf("data is not a map")
 )
 
-// ParseJsonRequest parses the body of an http.Request and unmarshals it's json payload into a struct to be used later
+// ParseJsonRequestStruct parses the body of an http.Request and unmarshals it's json payload into a struct to be used later
 // interface needs to be a pointer to avoid errors. It also expects the content-type header to be set to application/json
-func ParseJsonRequest(r *http.Request, i interface{}) error {
-	if strings.ToLower(r.Header.Get("Content-Type")) != "application/json" {
-		return ErrContentType
-	}
-
+func ParseJsonRequestStruct(r *http.Request, i interface{}) error {
 	if reflect.ValueOf(i).Kind() != reflect.Ptr {
 		return ErrPointerError
+	}
+	err := parseJson(r,i)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ParseJsonRequestMap parses the body of an http.Request and unmarshals it's json payload into a map[string]interface{
+func ParseJsonRequestMap(r *http.Request) (map[string]interface{},error) {
+	i := make(map[string]interface{})
+	err := parseJson(r,&i)
+	if err != nil {
+		return nil, err
+	}
+	return  i,nil
+}
+
+func parseJson(r *http.Request,i interface{})error{
+	if strings.ToLower(r.Header.Get("Content-Type")) != "application/json" {
+		return ErrContentType
 	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
 	defer r.Body.Close()
-	err = json.Unmarshal(body, i)
+	err = json.Unmarshal(body,i)
 	if err != nil {
 		return ErrInvalidJson
 	}

@@ -12,23 +12,31 @@ type testStruct struct {
 	Name string  `json:"name"`
 	Description string `json:"description"`
 }
-func TestParseJsonRequest(t *testing.T) {
+func TestParseJsonRequestStruct(t *testing.T) {
 	t.Run("valid json", func(t *testing.T) {
 		result := &testStruct{}
 		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`{"name":"bob","description":"friend"}`))
 		r.Header.Add("Content-Type","application/json")
-		err := ParseJsonRequest(r,result)
+		err := ParseJsonRequestStruct(r,result)
 		assert.Nil(t, err)
 		assert.Equal(t, &testStruct{
 			Name:        "bob",
 			Description: "friend",
 		},result)
 	})
+	t.Run("valid json to map", func(t *testing.T) {
+		result := make(map[string]interface{})
+		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`{"name":"bob","description":"friend"}`))
+		r.Header.Add("Content-Type","application/json")
+		err := ParseJsonRequestStruct(r,result)
+		assert.NotNil(t, err)
+		assert.Equal(t,ErrPointerError,err)
+	})
 	t.Run("invalid json", func(t *testing.T) {
 		result := &testStruct{}
 		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`"name":"bob","description":"friend"}`))
 		r.Header.Add("Content-Type","application/json")
-		err := ParseJsonRequest(r,result)
+		err := ParseJsonRequestStruct(r,result)
 		assert.NotNil(t, err)
 		assert.Equal(t, err,ErrInvalidJson)
 	})
@@ -36,7 +44,7 @@ func TestParseJsonRequest(t *testing.T) {
 		result := &testStruct{}
 		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`{"name":"bob","description":"friend"}`))
 		r.Header.Add("Content-Type","application/xml")
-		err := ParseJsonRequest(r,result)
+		err := ParseJsonRequestStruct(r,result)
 		assert.NotNil(t, err)
 		assert.Equal(t, err,ErrContentType)
 	})
@@ -44,7 +52,7 @@ func TestParseJsonRequest(t *testing.T) {
 		result := testStruct{}
 		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`{"name":"bob","description":"friend"}`))
 		r.Header.Add("Content-Type","application/json")
-		err := ParseJsonRequest(r,result)
+		err := ParseJsonRequestStruct(r,result)
 		assert.NotNil(t, err)
 		assert.Equal(t, err,ErrPointerError)
 		assert.NotEqual(t, testStruct{
@@ -53,6 +61,34 @@ func TestParseJsonRequest(t *testing.T) {
 		},result)
 	})
 }
+
+func TestParseJsonRequestMap(t *testing.T) {
+	t.Run("valid json to map", func(t *testing.T) {
+		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`{"name":"bob","description":"friend"}`))
+		r.Header.Add("Content-Type","application/json")
+		m, err := ParseJsonRequestMap(r)
+		assert.Nil(t, err)
+		assert.Equal(t,map[string]interface{}{
+			"name":"bob",
+			"description":"friend",
+		},m)
+	})
+	t.Run("invalid json to map", func(t *testing.T) {
+		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`"name":"bob","description":"friend"}`))
+		r.Header.Add("Content-Type","application/json")
+		_, err := ParseJsonRequestMap(r)
+		assert.NotNil(t, err)
+		assert.Equal(t,ErrInvalidJson,err)
+	})
+	t.Run("invalid content type", func(t *testing.T) {
+		r := httptest.NewRequest("POST","/",bytes.NewBufferString(`"{name":"bob","description":"friend"}`))
+		r.Header.Add("Content-Type","application/xml")
+		_, err := ParseJsonRequestMap(r)
+		assert.NotNil(t, err)
+		assert.Equal(t,ErrContentType,err)
+	})
+}
+
 func TestWriteStructJson(t *testing.T) {
 	t.Run("valid struct", func(t *testing.T) {
 		test := testStruct{
